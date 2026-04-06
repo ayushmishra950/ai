@@ -1,65 +1,92 @@
-import Image from "next/image";
+"use client";
+import { useState } from "react";
+import { LiveProvider, LiveEditor, LiveError, LivePreview } from "react-live";
+import * as LucideIcons from "lucide-react"; // AI icons use kar sake isliye
 
 export default function Home() {
+  const [prompt, setPrompt] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      
+      // AI response se markdown tags (```jsx) hatane ke liye clean-up logic
+      const cleanCode = data.code.replace(/```jsx|```javascript|```tsx|```/g, "").trim();
+      setGeneratedCode(cleanCode);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadCode = () => {
+    const element = document.createElement("a");
+    const file = new Blob([generatedCode], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = "MyComponent.tsx";
+    document.body.appendChild(element);
+    element.click();
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-center">AI Design Generator</h1>
+      
+      {/* Input Area */}
+      <div className="flex gap-2">
+        <input 
+          className="border p-3 flex-1 rounded-lg text-black outline-none"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="E.g., A modern blue pricing card with a 'Buy Now' button"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <button 
+          onClick={handleGenerate}
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+        >
+          {loading ? "Generating..." : "Generate"}
+        </button>
+      </div>
+
+      {generatedCode && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 border rounded-xl overflow-hidden shadow-lg">
+          
+          {/* Live Preview Area */}
+          <div className="p-6 bg-white min-h-[400px]">
+            <h3 className="text-sm font-semibold mb-4 text-gray-500 uppercase">Live Preview</h3>
+            <LiveProvider code={generatedCode} scope={{ ...LucideIcons }}>
+              <LivePreview />
+              <LiveError className="text-red-500 mt-4 text-xs bg-red-50 p-2 rounded" />
+            </LiveProvider>
+          </div>
+
+          {/* Code Editor & Download */}
+          <div className="bg-gray-900 p-6 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase">Generated Code</h3>
+              <button 
+                onClick={downloadCode}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded"
+              >
+                Download .tsx
+              </button>
+            </div>
+            <LiveProvider code={generatedCode}>
+              <LiveEditor className="font-mono text-sm h-[350px] overflow-auto rounded border border-gray-700" />
+            </LiveProvider>
+          </div>
+
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
     </div>
   );
 }
